@@ -1,8 +1,21 @@
-"""Settings, read from `[tool.blot]` in pyproject.toml or a `.blot.toml` file."""
+"""Settings, read from `[tool.blot]` in pyproject.toml and/or a `.blot.toml` file.
+
+`.blot.toml` wins over pyproject.toml. Keys may use dashes or underscores:
+
+    [tool.blot]
+    min-severity = 2
+    cochange-min-confidence = 0.8
+    disabled-checks = ["forgot-related-file"]
+    ignore-paths = ["docs/*", "*.lock"]
+
+TOML parsing needs Python 3.11+ (stdlib `tomllib`). On 3.10 the defaults are used.
+"""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import os
+import sys
+from dataclasses import dataclass, field, fields
 
 
 @dataclass
@@ -18,6 +31,41 @@ class Config:
     ignore_paths: list[str] = field(default_factory=list)
 
 
+def _read_toml(path: str) -> dict:
+    try:
+        import tomllib
+    except ModuleNotFoundError:  # Python 3.10
+        return {}
+    try:
+        with open(path, "rb") as f:
+            return tomllib.load(f)
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        print(f"blot: ignoring {os.path.basename(path)}: {exc}", file=sys.stderr)
+        return {}
+
+
 def load_config(repo: str) -> Config:
-    # TODO(M1): parse pyproject.toml / .blot.toml with tomllib (3.11+), defaults on 3.10
-    return Config()
+    raw: dict = {}
+    pyproject = os.path.join(repo, "pyproject.toml")
+    if os.path.exists(pyproject):
+        raw.update(_read_toml(pyproject).get("tool", {}).get("blot", {}))
+    own = os.path.join(repo, ".blot.toml")
+    if os.path.exists(own):
+        raw.update(_read_toml(own))
+
+    config = Config()
+    known = {f.name: f for f in fields(Config)}
+    for key, value in raw.items():
+        name = key.replace("-", "_")
+        if name not in known:
+            print(f"blot: unknown config key {key!r} (ignored)", file=sys.stderr)
+            continue
+        default = getattr(config, name)
+        expected = type(default)
+        if expected is float and isinstance(value, int):
+            value = float(value)
+        if not isinstance(value, expected) or (expected is int and isinstance(value, bool)):
+            print(f"blot: config key {key!r} should be {expected.__name__} (ignored)", file=sys.stderr)
+            continue
+        setattr(config, name, value)
+    return config
