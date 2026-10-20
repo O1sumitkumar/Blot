@@ -1,6 +1,6 @@
 # Blot
 
-[![CI](https://github.com/Sym-jay/Blot/actions/workflows/ci.yml/badge.svg)](https://github.com/Sym-jay/Blot/actions/workflows/ci.yml)
+[![CI](https://github.com/Sym-jay/Blot/actions/workflows/ci.yml/badge.svg)](https://github.com/Sym-jay/Blot/actions/workflows/ci.yml) [![PyPI](https://img.shields.io/pypi/v/blot-git)](https://pypi.org/project/blot-git/)
 
 <img src="assets/sora/orange/walk.svg" width="480" alt="Sora, the Blot slime, sliding back and forth">
 
@@ -50,14 +50,14 @@ Sora comes in four warm palettes:
 
 ## Quickstart
 
-Not on PyPI yet, so install from GitHub:
-
 ```bash
-pip install git+https://github.com/Sym-jay/Blot
+pip install blot-git  # the PyPI name is blot-git; the command is just `blot`
 cd your-repo
 blot index            # one-time, builds .git/blot.db (refreshes incrementally after that)
 blot install-hook     # adds Blot to .git/hooks/pre-commit without touching existing hooks
 ```
+
+For the latest unreleased code, use `pip install git+https://github.com/Sym-jay/Blot` instead.
 
 Remove it any time with `blot install-hook --uninstall`. Settings go in `[tool.blot]` in `pyproject.toml` or a `.blot.toml` file (see `src/blot/config.py`).
 
