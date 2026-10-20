@@ -22,7 +22,11 @@ from blot.report import render
 def _cmd_index(args: argparse.Namespace) -> int:
     from blot.index import build_index
 
-    build_index(args.repo, full=args.full, github=args.github)
+    result = build_index(args.repo, full=args.full, github=args.github)
+    if not args.quiet:
+        kind = "full" if result.full else "incremental"
+        print(f"blot: indexed {result.commits} commits ({result.fixes} load-bearing fixes), "
+              f"{kind}, in {result.seconds:.1f}s")
     return 0
 
 
@@ -30,15 +34,18 @@ def _cmd_check(args: argparse.Namespace) -> int:
     from blot.diff import read_changes
     from blot.store import Store
 
-    config = load_config(args.repo)
-    store = Store.open(args.repo)
-    if store is None:
-        # Never break a commit because the index is missing; just say how to fix it.
-        print("blot: no index yet, run `blot index` (commit allowed)", file=sys.stderr)
+    try:
+        config = load_config(args.repo)
+        store = Store.open(args.repo)
+        if store is None:
+            # Never break a commit because the index is missing; just say how to fix it.
+            print("blot: no index yet, run `blot index` (commit allowed)", file=sys.stderr)
+            return 0
+        changes = read_changes(args.repo, rev_range=args.range)
+        findings = [f for check in all_checks(config) for f in check.run(changes, store, config)]
+    except Exception as exc:  # Blot's own failures must never block a commit
+        print(f"blot: internal error, skipping checks ({exc.__class__.__name__}: {exc})", file=sys.stderr)
         return 0
-
-    changes = read_changes(args.repo, rev_range=args.range)
-    findings = [f for check in all_checks(config) for f in check.run(changes, store, config)]
     print(render(findings, fmt=args.format), end="")
     return 1 if (args.strict and findings) else 0
 
@@ -48,7 +55,16 @@ def _cmd_why(args: argparse.Namespace) -> int:
 
 
 def _cmd_install_hook(args: argparse.Namespace) -> int:
-    raise NotImplementedError("TODO(M1): write .git/hooks/pre-commit without clobbering existing hooks")
+    from blot import hooks
+
+    if args.uninstall:
+        print(f"blot: pre-commit hook {hooks.uninstall(args.repo)}")
+        return 0
+    status = hooks.install(args.repo)
+    print(f"blot: pre-commit hook {status} ({hooks.hook_path(args.repo)})")
+    if status != "already installed":
+        print("blot: run `blot index` once so the checks have history to work with")
+    return 0
 
 
 def _cmd_bench(args: argparse.Namespace) -> int:
@@ -63,7 +79,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("index", help="build or refresh the local history index")
     p.add_argument("--full", action="store_true", help="rebuild from scratch instead of incrementally")
-    p.add_argument("--github", action="store_true", help="add PR/issue data via the gh CLI")
+    p.add_argument("--github", action="store_true", help="add PR/issue data via the gh CLI (milestone M3)")
+    p.add_argument("--quiet", action="store_true", help="print nothing on success (for git hooks)")
     p.set_defaults(func=_cmd_index)
 
     p = sub.add_parser("check", help="run history checks on staged changes or a commit range")
@@ -78,6 +95,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=_cmd_why)
 
     p = sub.add_parser("install-hook", help="add blot to .git/hooks/pre-commit")
+    p.add_argument("--uninstall", action="store_true", help="remove blot's lines from the hook")
     p.set_defaults(func=_cmd_install_hook)
 
     p = sub.add_parser("bench", help="score checks against bench/cases.json")

@@ -2,12 +2,29 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass, field
 
 from blot.git import run_git
 
 _HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+_TRAILING_COMMENT = re.compile(r"\s+(?:#|//)\s.*$")
+_TRIVIAL = re.compile(r"^(?:[\s{}()\[\];,.:]*|(?:import|from|#include|using|package|require)\b.*|(?:return|pass|break|continue|else|end|try|finally)\b\W*)$")
+
+
+def normalize_line(text: str) -> str:
+    """Collapse whitespace and drop trailing comments so cosmetic edits still match."""
+    return " ".join(_TRAILING_COMMENT.sub("", text).split())
+
+
+def is_trivial_line(normalized: str) -> bool:
+    """Lines too generic to mean anything on their own: brackets, imports, bare keywords."""
+    return len(normalized) < 12 or bool(_TRIVIAL.match(normalized))
+
+
+def line_hash(normalized: str) -> str:
+    return hashlib.blake2b(normalized.encode("utf-8"), digest_size=8).hexdigest()
 
 
 @dataclass
