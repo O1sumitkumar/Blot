@@ -57,23 +57,79 @@ TOP = 6  # rows of headroom for "!" and "z"
 
 
 def svg(palette: dict[str, str], face: str) -> str:
-    colors = {**palette, **FIXED}
-    cells: dict[tuple[int, int], str] = {}
-    for y, row in enumerate(BODY):
-        for x, key in enumerate(row):
-            if key != ".":
-                cells[(x, y + TOP)] = key
-    for x, y, key in FACES[face]:
-        cells[(x, y + TOP)] = key
-    rects = []
-    for (x, y), key in sorted(cells.items(), key=lambda c: (c[0][1], c[0][0])):
-        extra = ' fill-opacity="0.18"' if key == "S" else ""
-        rects.append(f'<rect x="{x}" y="{y}" width="1" height="1" fill="{colors[key]}"{extra}/>')
     height = len(BODY) + TOP
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 {height}" '
         f'shape-rendering="crispEdges" role="img" aria-label="Sora, {face}">'
-        + "".join(rects)
+        + _rects(palette, face)
+        + "</svg>\n"
+    )
+
+
+# Squished frame: the dome's top row pressed down into the body; the face drops one pixel with it.
+SQUISH = ["." * 28] + BODY[1:]
+
+
+def _rects(palette: dict[str, str], face: str, squish: bool = False, flip: bool = False, dx: int = 0) -> str:
+    colors = {**palette, **FIXED}
+    cells: dict[tuple[int, int], str] = {}
+    for y, row in enumerate(SQUISH if squish else BODY):
+        for x, key in enumerate(row):
+            if key != ".":
+                cells[(x, y + TOP)] = key
+    for x, y, key in FACES[face]:
+        cells[(x, y + TOP + (1 if squish and y >= 0 else 0))] = key
+    rects = []
+    for (x, y), key in sorted(cells.items(), key=lambda c: (c[0][1], c[0][0])):
+        extra = ' fill-opacity="0.18"' if key == "S" else ""
+        px = (27 - x if flip else x) + dx
+        rects.append(f'<rect x="{px}" y="{y}" width="1" height="1" fill="{colors[key]}"{extra}/>')
+    return "".join(rects)
+
+
+def _toggle(index: int, count: int, dur: str) -> str:
+    """SMIL: show this frame for 1/count of the cycle, hidden otherwise."""
+    values = ";".join("1" if i == index else "0" for i in range(count))
+    times = ";".join(f"{i / count:.4f}" for i in range(count))
+    return (f'<animate attributeName="opacity" values="{values}" keyTimes="{times}" '
+            f'calcMode="discrete" dur="{dur}" repeatCount="indefinite"/>')
+
+
+def walk_svg(palette: dict[str, str], width: int = 120, seconds: float = 8.0) -> str:
+    """Sora squish-slides right, turns around, slides back. Animated with SMIL (plays on GitHub)."""
+    travel = width - 28
+    height = len(BODY) + TOP
+    groups = []
+    for d, flip in enumerate((True, False)):  # 0: heading right (eye in front), 1: heading left
+        frames = "".join(
+            f'<g opacity="{1 if s == 0 else 0}">{_rects(palette, "idle", squish=bool(s), flip=flip)}{_toggle(s, 2, "0.6s")}</g>'
+            for s in range(2)
+        )
+        groups.append(f'<g opacity="{1 if d == 0 else 0}">{frames}{_toggle(d, 2, f"{seconds}s")}</g>')
+    move = (f'<animateTransform attributeName="transform" type="translate" values="0 0;{travel} 0;0 0" '
+            f'dur="{seconds}s" repeatCount="indefinite"/>')
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
+        f'shape-rendering="crispEdges" role="img" aria-label="Sora the slime walking">'
+        f'<g>{"".join(groups)}{move}</g></svg>\n'
+    )
+
+
+def faces_svg(palette: dict[str, str], each: float = 1.4) -> str:
+    """Sora cycling through every expression, squishing gently in each."""
+    height = len(BODY) + TOP
+    names = list(FACES)
+    groups = []
+    for i, face in enumerate(names):
+        frames = "".join(
+            f'<g opacity="{1 if s == 0 else 0}">{_rects(palette, face, squish=bool(s))}{_toggle(s, 2, "0.7s")}</g>'
+            for s in range(2)
+        )
+        groups.append(f'<g opacity="{1 if i == 0 else 0}">{frames}{_toggle(i, len(names), f"{each * len(names)}s")}</g>')
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 {height}" '
+        f'shape-rendering="crispEdges" role="img" aria-label="Sora showing each expression">'
+        + "".join(groups)
         + "</svg>\n"
     )
 
@@ -85,7 +141,9 @@ def main() -> None:
         out.mkdir(exist_ok=True)
         for face in FACES:
             (out / f"{face}.svg").write_text(svg(palette, face), encoding="utf-8")
-    print(f"wrote {len(PALETTES) * len(FACES)} sprites to {root}")
+        (out / "walk.svg").write_text(walk_svg(palette), encoding="utf-8")
+        (out / "faces.svg").write_text(faces_svg(palette), encoding="utf-8")
+    print(f"wrote {len(PALETTES) * (len(FACES) + 2)} sprites to {root}")
 
 
 if __name__ == "__main__":
