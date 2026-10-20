@@ -1,0 +1,11 @@
+# Lets users of the pre-commit framework add blot with:
+#   - repo: https://github.com/Sym-jay/Blot
+#     rev: v0.1.0
+#     hooks: [{id: blot}]
+- id: blot
+  name: blot (history-aware checks)
+  entry: blot check --staged
+  language: python
+  pass_filenames: false
+  always_run: true
+  stages: [pre-commit]

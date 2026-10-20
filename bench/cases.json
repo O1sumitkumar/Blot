@@ -1,0 +1,17 @@
+[
+  {
+    "id": "flask-weakref-static-route",
+    "repo": "https://github.com/pallets/flask",
+    "at": "d086db85",
+    "change": "remove weakref in static route: replace lines 353-355 of src/flask/app.py with a direct self reference",
+    "file": "src/flask/app.py",
+    "lines": [353, 355],
+    "expect": {
+      "check": "removed-fix",
+      "warn": true,
+      "commit": "8efea0cc",
+      "trap": "0ec7f713 (Split the App and Blueprint into Sansio and IO parts: a refactor, not the reason)"
+    },
+    "notes": "Every tool tested on 2026-10-19 stopped at the refactor commit. See docs/competitors.md."
+  }
+]
