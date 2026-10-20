@@ -8,7 +8,7 @@
     disabled-checks = ["forgot-related-file"]
     ignore-paths = ["docs/*", "*.lock"]
 
-TOML parsing needs Python 3.11+ (stdlib `tomllib`). On 3.10 the defaults are used.
+TOML is read with the stdlib `tomllib` on Python 3.11+ and with `tomli` on 3.10 (a dependency there only).
 """
 
 from __future__ import annotations
@@ -35,7 +35,11 @@ def _read_toml(path: str) -> dict:
     try:
         import tomllib
     except ModuleNotFoundError:  # Python 3.10
-        return {}
+        try:
+            import tomli as tomllib
+        except ModuleNotFoundError:
+            print(f"blot: ignoring {os.path.basename(path)}: reading it on Python 3.10 needs tomli", file=sys.stderr)
+            return {}
     try:
         with open(path, "rb") as f:
             return tomllib.load(f)
