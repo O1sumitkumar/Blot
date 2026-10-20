@@ -2,9 +2,21 @@
 name = "blot-git"
 version = "0.0.1"
 description = "A pre-commit check that has read your project's history: warns when a change removes a fix, re-adds a fixed bug, or forgets a file that always changes too."
-readme = "README.md"
+readme = "docs/PYPI.md"  # text-only; the GitHub README's relative Sora images break on PyPI
 license = { text = "MIT" }
 requires-python = ">=3.10"
+authors = [{ name = "Shyam" }]
+keywords = ["git", "pre-commit", "git-history", "code-review", "developer-tools"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Quality Assurance",
+  "Topic :: Software Development :: Version Control :: Git",
+]
 dependencies = []  # core is stdlib-only: fast hook startup, trivial install
 
 [project.urls]
