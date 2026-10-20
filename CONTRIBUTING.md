@@ -27,3 +27,8 @@ pytest
 ## Ground rules
 - Core stays **stdlib-only** and the `check` command stays **under 500 ms**.
 - Quiet beats clever: a new warning must not raise the false-alarm rate on the bench.
+
+## Releasing (maintainers)
+1. Bump `version` in `pyproject.toml` and merge to `main`.
+2. Create a GitHub release with tag `vX.Y.Z` matching that version.
+3. The `Release` workflow builds and uploads to PyPI as `blot-git` (trusted publishing, no tokens).
